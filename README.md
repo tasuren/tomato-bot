@@ -39,7 +39,7 @@
 
 ## 謝辞
 
-`data/audio/default` にある `alarm_standard.wav` は、[OtoLogic](https://otologic.jp?utm_source=chatgpt.com) が提供するサウンド素材（CC BY 4.0）です。  
+`data/audio/default` にある `alarm_standard.wav` は、[OtoLogic](https://otologic.jp) が提供するサウンド素材（CC BY 4.0）です。  
 トマトBotのデフォルトアラーム音として使用しています。ありがとうございます。
 
 ## ライセンス
