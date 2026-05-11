@@ -95,19 +95,24 @@ async def stop(interaction: discord.Interaction[TomatoBot]) -> None:
     """ポモドーロタイマーの動作を停止するコマンド"""
     assert isinstance(interaction.guild, discord.Guild)
 
+    # 終了時にクリーンアップや通知メッセージの編集など、
+    # 時間がかかる可能性があるのでdeferする。
+    await interaction.response.defer(thinking=True)
+
     use_case = get_use_case(interaction)
     try:
         await use_case.stop(interaction.guild.id)
     except SessionNotFound:
-        await interaction.response.send_message(
-            "ポモドーロタイマーはまだ動いていないようです。\n"
+        await interaction.edit_original_response(
+            content="ポモドーロタイマーはまだ動いていないようです。\n"
             "なので止めるタイマーがなく何もしませんでした。\n"
             "-# もしタイマーは動いていないがVCに残ってしまっている場合、"
-            "`/強制退出`を使ってみてください。",
-            ephemeral=True,
+            "`/強制退出`を使ってみてください。"
         )
     else:
-        await interaction.response.send_message("ポモドーロタイマーを終了しました。")
+        await interaction.edit_original_response(
+            content="ポモドーロタイマーを終了しました。"
+        )
 
 
 @app_commands.command(
