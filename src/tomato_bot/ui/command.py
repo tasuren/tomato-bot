@@ -212,6 +212,7 @@ async def about(interaction: discord.Interaction[TomatoBot]) -> None:
     """このBotに関する情報を表示するコマンド"""
     ABOUT_TEXT: Final = dedent(
         """
+        🍅 トマトBot
         このBotは、メッセージとアラーム音でポモドーロタイマーをVCで動かせるBotです。
         現在クローズドベータで一部先行公開中です。
 
