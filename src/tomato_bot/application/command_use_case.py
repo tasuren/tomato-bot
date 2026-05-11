@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-__all__ = ("CommandUseCase", "CommandUseCaseException", "AlreadyStarting")
+__all__ = (
+    "CommandUseCase",
+    "CommandUseCaseException",
+    "AlreadyStarting",
+    "AlreadyStarted",
+    "NoStartFlow",
+)
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 
 import discord
 
@@ -14,12 +23,28 @@ class CommandUseCaseException(Exception):
     """Botコマンドのエラー"""
 
 
+@dataclass(frozen=True)
 class AlreadyStarting(CommandUseCaseException):
     """既に開始操作が始まっている時のエラー"""
+
+    start_prompt_jump_url: str | None = None
 
 
 class AlreadyStarted(CommandUseCaseException):
     """既に開始されている時のエラー"""
+
+
+class NoStartFlow(CommandUseCaseException):
+    """指定されたサーバーの開始フロー状態がまだない時のエラー"""
+
+
+@dataclass(frozen=True, kw_only=True)
+class StartFlow:
+    """開始フローの状態"""
+
+    guild_id: int
+    routines: Mapping[int, Routine] = field(default_factory=dict)
+    start_prompt_jump_url: str | None = None
 
 
 class CommandUseCase:
@@ -28,17 +53,41 @@ class CommandUseCase:
     def __init__(self, *, repository: Repository, sessions: SessionManager) -> None:
         self._repository = repository
         self._sessions = sessions
-        self._starting = set[int]()
+        self._start_flows = dict[int, StartFlow]()
 
-    async def begin_start_flow(self, guild_id: int, user_id: int) -> list[Routine]:
+    async def begin_start_flow(self, guild_id: int, user_id: int) -> StartFlow:
         """開始操作を初めて、ユーザーが利用可能なルーチンを取得する。"""
-        if guild_id in self._starting:
-            raise AlreadyStarting
+        if (flow := self._start_flows.get(guild_id)) is not None:
+            raise AlreadyStarting(flow.start_prompt_jump_url)
         if self._sessions.is_created(guild_id):
             raise AlreadyStarted
-        self._starting.add(guild_id)
 
-        return await self._repository.get_available_routines(guild_id, user_id)
+        self._start_flows[guild_id] = StartFlow(guild_id=guild_id)
+
+        try:
+            routines = await self._repository.get_available_routines(guild_id, user_id)
+        finally:
+            self._start_flows.pop(guild_id, None)
+
+        flow = StartFlow(guild_id=guild_id, routines={r.id: r for r in routines})
+
+        self._start_flows[guild_id] = flow
+        return flow
+
+    def attach_start_prompt_jump_url(self, guild_id: int, jump_url: str) -> StartFlow:
+        """開始操作を始めたきっかけのメッセージへのリンクを状態に保存しておく。"""
+        if guild_id not in self._start_flows:
+            raise NoStartFlow
+
+        old_flow = self._start_flows[guild_id]
+        flow = StartFlow(
+            guild_id=old_flow.guild_id,
+            routines=old_flow.routines,
+            start_prompt_jump_url=jump_url,
+        )
+        self._start_flows[guild_id] = flow
+
+        return flow
 
     async def prepare_start(
         self,
@@ -62,18 +111,24 @@ class CommandUseCase:
 
     def start(self, guild_id: int) -> None:
         """タイマーを開始する。"""
-        self._sessions.start(guild_id)
-        self._starting.discard(guild_id)
+        try:
+            self._sessions.start(guild_id)
+        finally:
+            self._start_flows.pop(guild_id, None)
 
     async def cancel_start(self, guild_id: int) -> None:
         """開始操作をキャンセルする。"""
-        await self._sessions.stop(guild_id)
-        self._starting.discard(guild_id)
+        try:
+            await self._sessions.stop(guild_id)
+        finally:
+            self._start_flows.pop(guild_id, None)
 
     async def stop(self, guild_id: int, *, force: bool = False) -> None:
         """ポモドーロタイマーを終了する。"""
-        await self._sessions.stop(guild_id, force=force)
-        self._starting.discard(guild_id)
+        try:
+            await self._sessions.stop(guild_id, force=force)
+        finally:
+            self._start_flows.pop(guild_id, None)
 
     def pause(self, guild_id: int) -> None:
         """ポモドーロタイマーを一時停止する。"""

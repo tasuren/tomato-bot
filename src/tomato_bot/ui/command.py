@@ -26,10 +26,6 @@ if TYPE_CHECKING:
     from tomato_bot.bot import TomatoBot
 
 
-_starting_message_map: dict[int, str] = {}
-"開始操作を行なっているサーバーと、開始操作を行うためのメッセージリンクの、対応表"
-
-
 @app_commands.command(
     name="ポモドーロタイマーを開始",
     description="あなたが参加しているVCに接続し、ポモドーロタイマーを作動します。",
@@ -49,14 +45,15 @@ async def start(interaction: discord.Interaction[TomatoBot]) -> None:
 
     # ポモドーロタイマーで動かすroutineを選択してもらう。
     use_case = get_use_case(interaction)
+
     try:
-        routines = await use_case.begin_start_flow(member.guild.id, member.id)
-    except AlreadyStarting:
+        flow = await use_case.begin_start_flow(member.guild.id, member.id)
+    except AlreadyStarting as e:
         content = (
             "既にポモドーロタイマーの開始操作が以下のメッセージで行われているようです。"
         )
 
-        jump_url = _starting_message_map.get(member.guild.id)
+        jump_url = e.start_prompt_jump_url
         if jump_url is not None:
             content += f"\nこちらをご確認ください: {jump_url}"
 
@@ -64,8 +61,7 @@ async def start(interaction: discord.Interaction[TomatoBot]) -> None:
         return
     except AlreadyStarted:
         await interaction.response.send_message(
-            "既にポモドーロタイマーは動作しているようです。"
-            "なので何もしませんでした。",
+            "既にポモドーロタイマーは動作しているようです。なので何もしませんでした。",
             ephemeral=True,
         )
         return
@@ -73,7 +69,7 @@ async def start(interaction: discord.Interaction[TomatoBot]) -> None:
     response = await interaction.response.send_message(
         "ポモドーロタイマーのルーチンを選択してください。",
         view=JoinSelectRoutineView(
-            dict(map(lambda r: (r.id, r), routines)),
+            dict(flow.routines),
             use_case=use_case,
             target_user_id=member.id,
             text_channel=text_channel,
@@ -86,7 +82,7 @@ async def start(interaction: discord.Interaction[TomatoBot]) -> None:
     else:
         jump_url = (await interaction.original_response()).jump_url
 
-    _starting_message_map[member.guild.id] = jump_url
+    use_case.attach_start_prompt_jump_url(flow.guild_id, jump_url)
 
 
 @app_commands.command(
