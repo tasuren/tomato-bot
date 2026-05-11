@@ -13,9 +13,7 @@ __all__ = (
 
 import asyncio
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 from tomato_bot.domain.routine import Phase, Routine
 
@@ -141,11 +139,8 @@ class TimerNotStarted(TimerStateError):
 class PomodoroTimer:
     """ポモドーロタイマーの実装"""
 
-    def __init__(
-        self, routine: Routine, *, listener: Callable[[TimerEvent], Any]
-    ) -> None:
+    def __init__(self, routine: Routine) -> None:
         self._state = TimerState(routine=routine)
-        self._listener = listener
         self._pause_controller = PauseController()
         self._events = asyncio.Queue[TimerEvent]()
 

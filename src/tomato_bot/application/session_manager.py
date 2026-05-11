@@ -66,7 +66,7 @@ class TimerSession:
         voice_client: discord.VoiceClient,
         alarm_sound_path: PurePath,
     ) -> None:
-        self._timer = PomodoroTimer(routine, listener=self._on_timer_event)
+        self._timer = PomodoroTimer(routine)
 
         self._text_channel = text_channel
         self._voice_client = voice_client
