@@ -5,7 +5,7 @@ from tomato_bot.config import loading_emoji
 __all__ = ("JoinSelectRoutineView",)
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, Self, override
 
 import discord
 
@@ -41,7 +41,9 @@ class SelectRoutineView(discord.ui.View):
 
     @discord.ui.select(placeholder="ルーチンを選択")
     async def routine_select(
-        self, interaction: discord.Interaction[TomatoBot], select: discord.ui.Select
+        self,
+        interaction: discord.Interaction[TomatoBot],
+        select: discord.ui.Select[Self],
     ) -> None:
         """ルーチン選択コンポーネント"""
         await self.on_select(interaction, int(select.values[0]))
