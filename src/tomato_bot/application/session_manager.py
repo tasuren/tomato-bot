@@ -102,8 +102,6 @@ class TimerSession:
         )
 
     async def _on_phase_changed(self, phase: Phase, ends_at: float) -> None:
-        self._has_phase_switched = True
-
         # アラーム音を再生
         f = open(self._alarm_sound_path, "rb")
         self._voice_client.play(WavAudio(f), after=lambda _: f.close())
@@ -116,6 +114,8 @@ class TimerSession:
                 self._has_phase_switched,
             )
             await self._last_notification.message.edit(content=content)
+
+        self._has_phase_switched = True
 
         # 新しい通知メッセージを送信
         kind = normalize_nested_quotes(phase.kind)
@@ -225,7 +225,7 @@ def format_time_until(target: float) -> str:
 def format_phase_status(kind: str, ends_at: float, has_phase_switched: bool) -> str:
     formated_ends_at = format_time_until(ends_at)
 
-    if has_phase_switched:
+    if not has_phase_switched:
         return (
             "🍅 ポモドーロタイマー\n"
             f"フェーズ「{kind}」が開始しました。\n"
@@ -266,7 +266,7 @@ def format_pinned_phase_status(
     """Discordのタイムスタンプを使わない、フェーズ状況通知メッセージの内容を作成する。"""
     formated_ends_at = format_pinned_time_until(ends_at)
 
-    if has_phase_switched:
+    if not has_phase_switched:
         return (
             "🍅 ポモドーロタイマー\n"
             f"フェーズ「{kind}」が開始しました。\n"
