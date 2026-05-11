@@ -241,23 +241,20 @@ def format_phase_status(kind: str, ends_at: float, has_phase_switched: bool) -> 
 
 def format_pinned_time_until(target: float) -> str:
     """Discordのタイムスタンプ表示を模倣した、メンションでない普通のテキストを作成する。"""
-    now = time()
-    remaining = target - now
+    remaining = target - time()
 
     if remaining <= 0:
         return "0秒後"
 
-    total_seconds = math.ceil(remaining)
-    hours, remainder = divmod(total_seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    if hours > 0:
+    if remaining >= 3600:
+        hours = math.ceil(remaining / 3600)
         return f"{hours}時間後"
 
-    if minutes > 0:
+    if remaining >= 60:
+        minutes = math.ceil(remaining / 60)
         return f"{minutes}分後"
 
-    return f"{seconds}秒後"
+    return f"{remaining:.0f}秒後"
 
 
 def format_pinned_phase_status(
