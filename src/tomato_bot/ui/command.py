@@ -86,8 +86,8 @@ async def start(interaction: discord.Interaction[TomatoBot]) -> None:
 
 
 @app_commands.command(
-    name="ポモドーロタイマーを終了",
-    description="あなたが参加しているVCでのポモドーロタイマーを終了します。",
+    name="ポモドーロタイマーを停止",
+    description="あなたが参加しているVCでのポモドーロタイマーを止めます。",
 )
 @app_commands.guild_only()
 async def stop(interaction: discord.Interaction[TomatoBot]) -> None:
