@@ -103,7 +103,8 @@ async def stop(interaction: discord.Interaction[TomatoBot]) -> None:
             "ポモドーロタイマーはまだ動いていないようです。\n"
             "なので止めるタイマーがなく何もしませんでした。\n"
             "-# もしタイマーは動いていないがVCに残ってしまっている場合、"
-            "`/強制退出`を使ってみてください。"
+            "`/強制退出`を使ってみてください。",
+            ephemeral=True,
         )
     else:
         await interaction.response.send_message("ポモドーロタイマーを終了しました。")
