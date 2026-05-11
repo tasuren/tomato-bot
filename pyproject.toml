@@ -1,0 +1,19 @@
+[project]
+name = "tomato-bot"
+version = "0.1.0"
+description = "ポモドーロ・テクニックをDiscordのVCでするためのBot。"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "audioop-lts>=0.2.2",
+    "davey>=0.1.5",
+    "discord-py>=2.7.1",
+    "pathvalidate>=3.3.1",
+    "pynacl>=1.6.2",
+    "python-dotenv>=1.2.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.9,<0.12"]
+build-backend = "uv_build"
