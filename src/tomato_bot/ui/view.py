@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tomato_bot.config import loading_emoji
+import contextlib
 
 __all__ = ("JoinSelectRoutineView",)
 
@@ -12,10 +12,13 @@ import discord
 from tomato_bot.application.command_use_case import CommandUseCase
 from tomato_bot.application.session_manager import (
     SessionAlreadyCreated,
+    SessionNotFound,
     TimerAlreadyStarted,
 )
+from tomato_bot.config import loading_emoji
 from tomato_bot.domain import Routine
-from tomato_bot.utils import normalize_nested_quotes
+from tomato_bot.ui.command_info import retrieve_commands
+from tomato_bot.utils import command_mention, normalize_nested_quotes
 
 if TYPE_CHECKING:
     from tomato_bot.bot import TomatoBot
@@ -109,13 +112,11 @@ class JoinSelectRoutineView(SelectRoutineView):
                 voice_channel=self._voice_channel,
             )
         except SessionAlreadyCreated:
-            ALREADY_STARTED = "既にポモドーロタイマーは設定済みのようです。"
-
-            if interaction.message is None:
-                await interaction.edit_original_response(content=ALREADY_STARTED)
-            else:
-                await interaction.message.reply(ALREADY_STARTED)
-
+            await interaction.edit_original_response(
+                content="既にポモドーロタイマーは別で設定済みのようです。"
+                "なので何もしませんでした。",
+                view=None,
+            )
             return
 
         # 即座にタイマーは稼働させずに、ユーザーからボタンを押されたタイミングにする。
@@ -128,25 +129,41 @@ class JoinSelectRoutineView(SelectRoutineView):
         )
 
         async def start(interaction: discord.Interaction[TomatoBot]) -> None:
+            confirm_view.stop()
+            start_button.disabled = True
+            stop_button.disabled = True
+
+            content = None
             try:
                 self._use_case.start(member.guild.id)
-            except TimerAlreadyStarted:
-                await interaction.response.send_message(
-                    "既にポモドーロタイマーは動作しています。"
-                    "なので何もしませんでした。",
-                    ephemeral=True,
+            except SessionNotFound:
+                commands = await retrieve_commands(interaction.client)
+                start = command_mention(commands["ポモドーロタイマーを開始"])
+                content = (
+                    "別で停止コマンドが使われたため、開始できませんでした。\n"
+                    f"もう一度、{start}コマンドを使ってみてください。"
                 )
-                return
+            except TimerAlreadyStarted:
+                content = (
+                    "既にポモドーロタイマーは動作しています。なので何もしませんでした。"
+                )
 
-            start_button.disabled = True
-            stop_button.disabled = True
-            await interaction.response.edit_message(view=confirm_view)
+            if content is None:
+                await interaction.response.edit_message(view=confirm_view)
+            else:
+                # エラー時は編集を応答にせず、エラー返信を応答にする。
+                if interaction.message is not None:
+                    await interaction.message.edit(view=confirm_view)
+                await interaction.response.send_message(content=content)
 
         async def stop(interaction: discord.Interaction[TomatoBot]) -> None:
-            await self._use_case.cancel_start(member.guild.id)
+            with contextlib.suppress(SessionNotFound):
+                await self._use_case.cancel_start(member.guild.id)
+
             start_button.disabled = True
             stop_button.disabled = True
             await interaction.response.edit_message(view=confirm_view)
+
             if interaction.message is not None:
                 await interaction.message.reply("キャンセルしました。")
 
@@ -157,6 +174,6 @@ class JoinSelectRoutineView(SelectRoutineView):
 
         routine_display_name = normalize_nested_quotes(routine.name)
         await interaction.edit_original_response(
-            content=f"準備が完了しました。ポモドーロタイマーを「{routine_display_name}」で開始します。",
+            content=f"準備が完了しました。\nポモドーロタイマーを「{routine_display_name}」で開始します。",
             view=confirm_view,
         )

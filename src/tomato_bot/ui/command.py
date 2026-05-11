@@ -21,6 +21,7 @@ from tomato_bot.domain import TimerAlreadyPaused, TimerAlreadyResumed, TimerNotS
 from tomato_bot.ui.common_text import REQUIRE_VC_TEXT
 from tomato_bot.ui.view import JoinSelectRoutineView
 from tomato_bot.utils import command_mention
+from tomato_bot.ui.command_info import retrieve_commands
 
 if TYPE_CHECKING:
     from tomato_bot.bot import TomatoBot
@@ -278,20 +279,6 @@ async def help(interaction: discord.Interaction[TomatoBot]) -> None:
 
 def get_use_case(interaction: discord.Interaction[TomatoBot]) -> CommandUseCase:
     return interaction.client.application_services.command_use_case
-
-
-_command_cache: dict[str, app_commands.AppCommand] | None = None
-
-
-async def retrieve_commands(bot: TomatoBot) -> dict[str, app_commands.AppCommand]:
-    """コマンドの情報を取得する。"""
-    global _command_cache
-
-    if _command_cache is None:
-        commands = await bot.tree.fetch_commands()
-        _command_cache = {cmd.name: cmd for cmd in commands}
-
-    return _command_cache
 
 
 def register_global_commands(bot: TomatoBot) -> None:
