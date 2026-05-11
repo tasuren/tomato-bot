@@ -85,6 +85,9 @@ class TomatoBot(discord.Client):
             self._already_connected = True
             logger.info("接続しました。")
 
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        await self.application_services.guild_initializer.on_guild_join(guild)
+
     async def close(self) -> None:
         logger.info("終了中...")
         await self.application_services.sessions.teardown()

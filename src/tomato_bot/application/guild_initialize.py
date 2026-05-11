@@ -22,7 +22,6 @@ class GuildInitializeService:
 
     def __init__(self, bot: TomatoBot) -> None:
         self._bot = bot
-        bot.event(self.on_guild_join)
 
     async def _ensure_guilds_initialized(self, guild_ids: Collection[int]) -> None:
         repository = self._bot.repository
