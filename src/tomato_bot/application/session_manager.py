@@ -189,7 +189,14 @@ class TimerSession:
         if self._task is None:
             raise TimerAlreadyStopped("既にポモドーロタイマーは停止しています。")
 
-        self._task.cancel()
+        task = self._task
+        self._task = None
+
+        task.cancel()
+        with contextlib.suppress(Exception):
+            # `logger.exception`でエラーのログは出している。
+            # ユーザーに終了したことは確実に伝えたいので、エラーはsuppressする。
+            await task
 
         if self._last_notification is not None:
             content = format_pinned_phase_status(

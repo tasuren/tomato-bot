@@ -194,9 +194,16 @@ class PomodoroTimer:
             phase_sleep = asyncio.create_task(asyncio.sleep(remaining))
             pause_receiver = asyncio.create_task(self._pause_controller.wait_pause())
 
-            done, pending = await asyncio.wait(
-                (phase_sleep, pause_receiver), return_when=asyncio.FIRST_COMPLETED
-            )
+            try:
+                done, pending = await asyncio.wait(
+                    (phase_sleep, pause_receiver), return_when=asyncio.FIRST_COMPLETED
+                )
+            finally:
+                for task in (phase_sleep, pause_receiver):
+                    if not task.done():
+                        task.cancel()
+            
+                await asyncio.gather(phase_sleep, pause_receiver, return_exceptions=True)
 
             for task in pending:
                 task.cancel()
