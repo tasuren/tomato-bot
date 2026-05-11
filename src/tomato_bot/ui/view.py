@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import contextlib
-
 __all__ = ("JoinSelectRoutineView",)
 
+import contextlib
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Self, override
 
