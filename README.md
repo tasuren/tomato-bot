@@ -1,9 +1,11 @@
 # トマトBot
 
-ポモドーロタイマーをVCで動かすためのDiscord Bot。
+ポモドーロタイマーをVCで動かすためのDiscord Bot。  
 カスタムルーチン機能を搭載し、初心者でも使いやすいUIを目指しています。
 
 **クローズドベータ公開中、近日公開**
+
+<img width="420" alt="Discord screenshot" src="https://github.com/user-attachments/assets/b46ca339-59ef-44f9-9061-61f6054aae73" />
 
 ## 開発方法
 
