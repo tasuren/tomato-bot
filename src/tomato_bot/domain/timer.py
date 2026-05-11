@@ -195,7 +195,7 @@ class PomodoroTimer:
             pause_receiver = asyncio.create_task(self._pause_controller.wait_pause())
 
             try:
-                done, pending = await asyncio.wait(
+                done, _ = await asyncio.wait(
                     (phase_sleep, pause_receiver), return_when=asyncio.FIRST_COMPLETED
                 )
             finally:
@@ -204,9 +204,6 @@ class PomodoroTimer:
                         task.cancel()
             
                 await asyncio.gather(phase_sleep, pause_receiver, return_exceptions=True)
-
-            for task in pending:
-                task.cancel()
 
             # 最後までフェーズの長さ分の待機タスクが完遂したのなら、
             # ここでこのフェーズの待機は終了。
