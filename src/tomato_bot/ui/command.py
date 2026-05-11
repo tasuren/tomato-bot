@@ -18,10 +18,10 @@ from tomato_bot.application.session_manager import (
 )
 from tomato_bot.config import override_about_text, override_help_text
 from tomato_bot.domain import TimerAlreadyPaused, TimerAlreadyResumed, TimerNotStarted
+from tomato_bot.ui.command_info import retrieve_commands
 from tomato_bot.ui.common_text import REQUIRE_VC_TEXT
 from tomato_bot.ui.view import JoinSelectRoutineView
 from tomato_bot.utils import command_mention
-from tomato_bot.ui.command_info import retrieve_commands
 
 if TYPE_CHECKING:
     from tomato_bot.bot import TomatoBot
@@ -100,9 +100,9 @@ async def stop(interaction: discord.Interaction[TomatoBot]) -> None:
         await use_case.stop(interaction.guild.id)
     except SessionNotFound:
         await interaction.response.send_message(
-            "既にポモドーロタイマーはあなたのVCで稼働していないようです。"
-            "したがって、私は何もしませんでした。"
-            "\n-# もしタイマーは動いていないがVCに残ってしまっている場合、"
+            "ポモドーロタイマーはまだ動いていないようです。\n"
+            "なので止めるタイマーがなく何もしませんでした。\n"
+            "-# もしタイマーは動いていないがVCに残ってしまっている場合、"
             "`/強制退出`を使ってみてください。"
         )
     else:
