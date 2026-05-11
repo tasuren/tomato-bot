@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 @app_commands.command(
     name="ポモドーロタイマーを開始",
-    description="あなたが参加しているVCに接続し、ポモドーロタイマーを作動します。",
+    description="あなたが参加しているVCに接続してタイマーを動かします。",
 )
 @app_commands.guild_only()
 async def start(interaction: discord.Interaction[TomatoBot]) -> None:
@@ -88,7 +88,7 @@ async def start(interaction: discord.Interaction[TomatoBot]) -> None:
 
 @app_commands.command(
     name="ポモドーロタイマーを停止",
-    description="あなたが参加しているVCでのポモドーロタイマーを止めます。",
+    description="このサーバーで稼働しているタイマーを止めます。",
 )
 @app_commands.guild_only()
 async def stop(interaction: discord.Interaction[TomatoBot]) -> None:
@@ -117,8 +117,8 @@ async def stop(interaction: discord.Interaction[TomatoBot]) -> None:
 
 @app_commands.command(
     name="強制退出",
-    description="ポモドーロタイマーが稼働してるかどうかに関係なく、"
-    "VCから強制的にトマトBotを退出させます。",
+    description="タイマーが稼働してるかどうかに関係なく、"
+    "VCから強制的にBotを退出させます。",
 )
 @app_commands.guild_only()
 async def force_disconnect(interaction: discord.Interaction[TomatoBot]) -> None:
@@ -141,7 +141,7 @@ async def force_disconnect(interaction: discord.Interaction[TomatoBot]) -> None:
 
 @app_commands.command(
     name="ポモドーロタイマーを一時停止",
-    description="ポモドーロタイマーを一時的に停止します。",
+    description="タイマーの動きを一時的に止めます。",
 )
 @app_commands.guild_only()
 async def pause(interaction: discord.Interaction[TomatoBot]) -> None:
@@ -174,7 +174,7 @@ async def pause(interaction: discord.Interaction[TomatoBot]) -> None:
 
 @app_commands.command(
     name="ポモドーロタイマーを再開",
-    description="一時停止したポモドーロタイマーを再開します。",
+    description="一時停止していたタイマーを再開します。",
 )
 @app_commands.guild_only()
 async def resume(interaction: discord.Interaction[TomatoBot]) -> None:
