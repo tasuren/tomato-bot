@@ -1,7 +1,7 @@
 # トマトBot
 
 ポモドーロタイマーをVCで動かすためのDiscord Bot。  
-カスタムルーチン機能を搭載し、初心者でも使いやすいUIを目指しています。
+Discord初心者でも使いやすいUIを目指しています。
 
 **クローズドベータ公開中、近日公開**
 
@@ -39,7 +39,7 @@
 
 ## 謝辞
 
-`data/audio/default` にある `alarm_standard.wav` は、[OtoLogic](https://otologic.jp) が提供するサウンド素材（CC BY 4.0）です。  
+`data/audio/default`にある`alarm_standard.wav`は、[OtoLogic](https://otologic.jp)が提供するサウンド素材（CC BY 4.0）です。  
 トマトBotのデフォルトアラーム音として使用しています。ありがとうございます。
 
 ## ライセンス
