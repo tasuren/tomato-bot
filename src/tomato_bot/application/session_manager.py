@@ -193,7 +193,7 @@ class TimerSession:
         self._task = None
 
         task.cancel()
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(asyncio.CancelledError, Exception):
             # `logger.exception`でエラーのログは出している。
             # ユーザーに終了したことは確実に伝えたいので、エラーはsuppressする。
             await task
@@ -304,7 +304,7 @@ class SessionManager:
         semaphore = asyncio.Semaphore(3)
 
         async def disconnect(session: TimerSession) -> None:
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 async with semaphore:
                     await session.stop()
                     await session.disconnect()
@@ -355,12 +355,10 @@ class SessionManager:
         if session is None:
             raise SessionNotFound
 
-        try:
-            with contextlib.suppress(TimerAlreadyStopped):
-                await session.stop()
-        finally:
-            self._sessions.pop(guild_id, None)
-            await session.disconnect(force=force)
+        with contextlib.suppress(TimerAlreadyStopped):
+            await session.stop()
+        self._sessions.pop(guild_id, None)
+        await session.disconnect(force=force)
 
     def pause(self, guild_id: int) -> None:
         try:
