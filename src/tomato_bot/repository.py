@@ -133,14 +133,15 @@ class SQLiteRepository(Repository):
     async def insert_routines(self, routines: Iterable[NewRoutineRecord]) -> None:
         await self.db.executemany(
             """
-            INSERT INTO routines (name, description, guild_id, alarm_sound_id, phases)
-            VALUES (?, ?, ?, ?, ?);
+            INSERT INTO routines (name, description, guild_id, user_id, alarm_sound_id, phases)
+            VALUES (?, ?, ?, ?, ?, ?);
             """,
             map(
                 lambda r: (
                     r.name,
                     r.description,
                     r.guild_id,
+                    r.user_id,
                     r.alarm_sound_id,
                     json.dumps(tuple(map(asdict, r.phases))),
                 ),
