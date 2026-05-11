@@ -324,7 +324,7 @@ class SessionManager:
         alarm_sound_path: PurePath,
     ) -> None:
         """VCに接続してポモドーロセッションを作成する。"""
-        if voice_channel.guild in self._sessions:
+        if voice_channel.guild.id in self._sessions:
             raise SessionAlreadyCreated(voice_channel.guild)
 
         session = await TimerSession.connect(
