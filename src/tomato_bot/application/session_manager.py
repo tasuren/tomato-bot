@@ -10,7 +10,6 @@ __all__ = (
 import asyncio
 import contextlib
 import math
-from dataclasses import dataclass
 from logging import getLogger
 from pathlib import PurePath
 from time import time
@@ -23,6 +22,8 @@ from tomato_bot.domain import (
     Phase,
     PhaseChanged,
     PhasePaused,
+    PhaseRemainingCheckpoint,
+    PhaseRemainingCheckpointKind,
     PhaseResumed,
     PhaseStarted,
     PomodoroTimer,
@@ -46,15 +47,6 @@ class TimerAlreadyStopped(TimerSessionError):
     """既にポモドーロタイマーが停止している場合のエラー"""
 
 
-@dataclass(frozen=True, kw_only=True)
-class PhaseNotificationSnapshot:
-    """フェーズ状況の通知に関する状態のスナップショット"""
-
-    message: discord.Message
-    ends_at: float
-    kind: str
-
-
 class TimerSession:
     """Discordとタイマーの橋渡しを行うadapter"""
 
@@ -72,9 +64,14 @@ class TimerSession:
         self._voice_client = voice_client
         self._alarm_sound_path = alarm_sound_path
 
+        self._last_remaining_notification: discord.Message | None = None
         self._has_phase_switched: bool = False
-        self._last_notification: PhaseNotificationSnapshot | None = None
         self._task: asyncio.Task[None] | None = None
+
+    async def _delete_last_remaining_notification(self) -> None:
+        if self._last_remaining_notification is not None:
+            await self._last_remaining_notification.delete()
+            self._last_remaining_notification = None
 
     async def _on_timer_event(self, event: TimerEvent) -> None:
         match event:
@@ -82,69 +79,61 @@ class TimerSession:
                 await self._on_phase_started(phase, ends_at)
             case PhaseChanged(phase=phase, ends_at=ends_at):
                 await self._on_phase_changed(phase, ends_at)
+            case PhaseRemainingCheckpoint(
+                phase=phase, remaining=remaining, ends_at=ends_at, kind=kind
+            ):
+                await self._on_phase_remaining_checkpoint(phase, remaining, kind)
             case PhasePaused(phase=phase, remaining=remaining):
                 await self._on_phase_paused(phase, remaining)
             case PhaseResumed(phase=phase, new_ends_at=new_ends_at):
                 await self._on_phase_resumed(phase, new_ends_at)
+            case _:
+                raise ValueError(f"知らないタイマーイベントが来ました。詳細: {event!r}")
 
     async def _on_phase_started(self, phase: Phase, ends_at: float) -> None:
         # ポモドーロタイマーが動き出したことを通知する。
-        kind = normalize_nested_quotes(phase.kind)
         content = format_phase_status(
-            kind=kind, ends_at=ends_at, has_phase_switched=self._has_phase_switched
-        )
-        message = await self._text_channel.send(content)
-
-        self._last_notification = PhaseNotificationSnapshot(
-            message=message,
-            kind=kind,
+            kind=phase.kind,
             ends_at=ends_at,
+            has_phase_switched=self._has_phase_switched,
         )
+        await self._text_channel.send(content)
 
     async def _on_phase_changed(self, phase: Phase, ends_at: float) -> None:
         # アラーム音を再生
         f = open(self._alarm_sound_path, "rb")
         self._voice_client.play(WavAudio(f), after=lambda _: f.close())
 
-        # 邪魔なので前回の通知メッセージを削除
-        if self._last_notification is not None:
-            content = format_pinned_phase_status(
-                self._last_notification.kind,
-                self._last_notification.ends_at,
-                self._has_phase_switched,
-            )
-            await self._last_notification.message.edit(content=content)
-
         self._has_phase_switched = True
 
         # 新しい通知メッセージを送信
-        kind = normalize_nested_quotes(phase.kind)
+        await self._delete_last_remaining_notification()
         content = format_phase_status(
-            kind=kind, ends_at=ends_at, has_phase_switched=self._has_phase_switched
+            kind=phase.kind,
+            ends_at=ends_at,
+            has_phase_switched=self._has_phase_switched,
         )
-        message = await self._text_channel.send(content)
+        await self._text_channel.send(content)
 
-        self._last_notification = PhaseNotificationSnapshot(
-            message=message, kind=kind, ends_at=ends_at
+    async def _on_phase_remaining_checkpoint(
+        self,
+        phase: Phase,
+        remaining: float,
+        checkpoint_kind: PhaseRemainingCheckpointKind,
+    ) -> None:
+        await self._delete_last_remaining_notification()
+        content = format_phase_remaining_checkpoint_status(
+            kind=phase.kind,
+            remaining=remaining,
+            checkpoint_kind=checkpoint_kind,
         )
+        self._last_remaining_notification = await self._text_channel.send(content)
 
-    async def _on_phase_paused(self, phase: Phase, remaining: float) -> None:
-        if self._last_notification is not None:
-            content = format_pinned_phase_status(
-                phase.kind,
-                self._last_notification.ends_at,
-                self._has_phase_switched,
-            )
-            await self._last_notification.message.edit(content=content)
+    async def _on_phase_paused(self, _phase: Phase, _remaining: float) -> None:
+        pass  # 現時点では特にここで何もすることはない。
 
-    async def _on_phase_resumed(self, phase: Phase, new_ends_at: float) -> None:
-        if self._last_notification is not None:
-            content = format_phase_status(
-                phase.kind,
-                new_ends_at,
-                self._has_phase_switched,
-            )
-            await self._last_notification.message.edit(content=content)
+    async def _on_phase_resumed(self, _phase: Phase, new_ends_at: float) -> None:
+        pass  # 現時点では特にここで何もすることはない。
 
     async def _consume_events(self) -> None:
         while True:
@@ -200,14 +189,6 @@ class TimerSession:
             # ユーザーに終了したことは確実に伝えたいので、エラーはsuppressする。
             await task
 
-        if self._last_notification is not None:
-            content = format_pinned_phase_status(
-                self._last_notification.kind,
-                self._last_notification.ends_at,
-                self._has_phase_switched,
-            )
-            await self._last_notification.message.edit(content=content)
-
     def pause(self) -> None:
         """タイマーの一時停止を行う。"""
         self._timer.pause()
@@ -217,64 +198,65 @@ class TimerSession:
         self._timer.resume()
 
 
-def format_time_until(target: float) -> str:
-    """Discordのタイムスタンプでリアルタイムに変化する「N分後」のメンションを作成する。"""
-    return f"<t:{math.ceil(target)}:R>"
-
-
 def format_phase_status(kind: str, ends_at: float, has_phase_switched: bool) -> str:
-    formated_ends_at = format_time_until(ends_at)
+    kind = normalize_nested_quotes(kind)
+    formated_ends_at = format_pinned_time_until(ends_at)
 
-    if not has_phase_switched:
-        return (
-            "🍅 ポモドーロタイマー\n"
-            f"フェーズ「{kind}」が開始しました。\n"
-            f"次のフェーズは{formated_ends_at}となります。"
-        )
+    if has_phase_switched:
+        head = f"「{kind}」の時間となりました。\n"
+    else:
+        head = f"フェーズ「{kind}」が開始しました。\n"
 
+    ends_at = math.ceil(ends_at)
     return (
         "🍅 ポモドーロタイマー\n"
-        f"「{kind}」の時間となりました。\n"
-        f"次のフェーズは{formated_ends_at}となります。"
+        + head
+        + f"次のフェーズは約{formated_ends_at}後の<t:{ends_at}:t>となります。"
+    )
+
+
+def format_phase_remaining_checkpoint_status(
+    *,
+    kind: str,
+    remaining: float,
+    checkpoint_kind: PhaseRemainingCheckpointKind,
+) -> str:
+    """残り時間チェックポイントに到達したことを知らせるメッセージの内容を作成する。"""
+    kind = normalize_nested_quotes(kind)
+
+    match checkpoint_kind:
+        case PhaseRemainingCheckpointKind.FIVE_MINUTES:
+            minutes = math.ceil(remaining / 60)
+            formated_ends_at = f"{minutes}分"
+        case PhaseRemainingCheckpointKind.ONE_MINUTE:
+            formated_ends_at = "1分"
+        case _:
+            raise ValueError(
+                f"不明なチェックポイントが配信されたようです。詳細: {checkpoint_kind!r}"
+            )
+
+    return (
+        "-# 🍅 ポモドーロタイマー\n"
+        f"-# フェーズ「{kind}」は残り{formated_ends_at}です。\n"
     )
 
 
 def format_pinned_time_until(target: float) -> str:
-    """Discordのタイムスタンプ表示を模倣した、メンションでない普通のテキストを作成する。"""
+    """Discordのタイムスタンプ表示を模倣した、メンションでない固定テキストを作成する。"""
     remaining = target - time()
 
     if remaining <= 0:
-        return "0秒後"
+        return "0秒"
 
     if remaining >= 3600:
         hours = math.ceil(remaining / 3600)
-        return f"{hours}時間後"
+        return f"{hours}時間"
 
     if remaining >= 60:
         minutes = math.ceil(remaining / 60)
-        return f"{minutes}分後"
+        return f"{minutes}分"
 
-    return f"{remaining:.0f}秒後"
-
-
-def format_pinned_phase_status(
-    kind: str, ends_at: float, has_phase_switched: bool
-) -> str:
-    """Discordのタイムスタンプを使わない、フェーズ状況通知メッセージの内容を作成する。"""
-    formated_ends_at = format_pinned_time_until(ends_at)
-
-    if not has_phase_switched:
-        return (
-            "🍅 ポモドーロタイマー\n"
-            f"フェーズ「{kind}」が開始しました。\n"
-            f"次のフェーズは{formated_ends_at}となります。"
-        )
-
-    return (
-        "🍅 ポモドーロタイマー\n"
-        f"「{kind}」の時間となりました。\n"
-        f"次のフェーズは{formated_ends_at}となります。"
-    )
+    return f"{remaining:.0f}秒"
 
 
 class SessionException(Exception):

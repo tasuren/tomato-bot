@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 __all__ = (
     "AlarmSoundFileRef",
     "AlarmSoundMetadata",
@@ -11,6 +13,8 @@ __all__ = (
     "RoutineMetadata",
     "PhaseStarted",
     "PhaseChanged",
+    "PhaseRemainingCheckpoint",
+    "PhaseRemainingCheckpointKind",
     "TimerEvent",
     "PomodoroTimer",
     "Phase",
@@ -21,6 +25,8 @@ from tomato_bot.domain.routine import Phase, Routine, RoutineMetadata
 from tomato_bot.domain.timer import (
     PhaseChanged,
     PhasePaused,
+    PhaseRemainingCheckpoint,
+    PhaseRemainingCheckpointKind,
     PhaseResumed,
     PhaseStarted,
     PomodoroTimer,

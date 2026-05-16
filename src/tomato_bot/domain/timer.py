@@ -3,6 +3,8 @@ from __future__ import annotations
 __all__ = (
     "PhaseStarted",
     "PhaseChanged",
+    "PhaseRemainingCheckpoint",
+    "PhaseRemainingCheckpointKind",
     "PomodoroTimer",
     "PhasePaused",
     "PhaseResumed",
@@ -12,10 +14,15 @@ __all__ = (
 )
 
 import asyncio
+import enum
 import time
 from dataclasses import dataclass
+from typing import Final
 
 from tomato_bot.domain.routine import Phase, Routine
+
+PHASE_REMAINING_CHECKPOINT_INTERVAL_SECONDS: Final = 5 * 60
+PHASE_REMAINING_FINAL_CHECKPOINT_SECONDS: Final = 60
 
 
 @dataclass(kw_only=True)
@@ -86,8 +93,68 @@ class PhaseResumed:
     new_ends_at: float
 
 
-type TimerEvent = PhaseStarted | PhaseChanged | PhasePaused | PhaseResumed
+class PhaseRemainingCheckpointKind(enum.Enum):
+    """フェーズの残り時間の区切りがどの種類か"""
+
+    FIVE_MINUTES = enum.auto()
+    ONE_MINUTE = enum.auto()
+
+
+@dataclass(frozen=True, kw_only=True)
+class PhaseRemainingCheckpoint:
+    """フェーズの残り時間の区切りに相当するチェックポイントのイベント（例：残り５分）"""
+
+    phase: Phase
+    remaining: float
+    ends_at: float
+    kind: PhaseRemainingCheckpointKind
+
+
+@dataclass(frozen=True, kw_only=True)
+class RemainingCheckpoint:
+    """残り時間チェックポイントのデータ"""
+
+    remaining: float
+    kind: PhaseRemainingCheckpointKind
+
+
+type TimerEvent = (
+    PhaseStarted | PhaseChanged | PhaseRemainingCheckpoint | PhasePaused | PhaseResumed
+)
 "ポモドーロタイマーの動作イベント"
+
+
+def build_remaining_checkpoints(duration: float) -> list[RemainingCheckpoint]:
+    """フェーズ時間から残り時間のチェックポイントを作成する。"""
+    checkpoints: list[RemainingCheckpoint] = []
+
+    interval = PHASE_REMAINING_CHECKPOINT_INTERVAL_SECONDS
+    checkpoint_count = int(duration // interval)
+
+    for index in range(checkpoint_count, 0, -1):
+        remaining = index * interval
+        if remaining >= duration:
+            continue
+
+        checkpoints.append(
+            RemainingCheckpoint(
+                remaining=remaining,
+                kind=PhaseRemainingCheckpointKind.FIVE_MINUTES,
+            )
+        )
+
+    final_checkpoint = PHASE_REMAINING_FINAL_CHECKPOINT_SECONDS
+    if final_checkpoint < duration:
+        checkpoints.append(
+            RemainingCheckpoint(
+                remaining=final_checkpoint,
+                kind=PhaseRemainingCheckpointKind.ONE_MINUTE,
+            )
+        )
+
+    return sorted(
+        checkpoints, key=lambda checkpoint: checkpoint.remaining, reverse=True
+    )
 
 
 class PauseController:
@@ -187,11 +254,18 @@ class PomodoroTimer:
         # 途中に一時停止されるケースに対応するため、while文を使う。
 
         remaining = self._state.current_phase.duration
+        checkpoints = build_remaining_checkpoints(remaining)
 
         while remaining > 0:
+            next_checkpoint = checkpoints[0] if checkpoints else None
+            wait_seconds = remaining
+
+            if next_checkpoint is not None:
+                wait_seconds = max(remaining - next_checkpoint.remaining, 0)
+
             started_at = time.monotonic()
 
-            phase_sleep = asyncio.create_task(asyncio.sleep(remaining))
+            phase_sleep = asyncio.create_task(asyncio.sleep(wait_seconds))
             pause_receiver = asyncio.create_task(self._pause_controller.wait_pause())
 
             try:
@@ -202,18 +276,38 @@ class PomodoroTimer:
                 for task in (phase_sleep, pause_receiver):
                     if not task.done():
                         task.cancel()
-            
-                await asyncio.gather(phase_sleep, pause_receiver, return_exceptions=True)
 
-            # 最後までフェーズの長さ分の待機タスクが完遂したのなら、
-            # ここでこのフェーズの待機は終了。
+                await asyncio.gather(
+                    phase_sleep, pause_receiver, return_exceptions=True
+                )
+
+            remaining -= time.monotonic() - started_at
+            if remaining < 0:
+                remaining = 0
+
             if phase_sleep in done:
+                if next_checkpoint is not None:
+                    checkpoints.pop(0)
+                    remaining = next_checkpoint.remaining
+                    self._events.put_nowait(
+                        PhaseRemainingCheckpoint(
+                            phase=self._state.current_phase,
+                            remaining=next_checkpoint.remaining,
+                            ends_at=time.time() + remaining,
+                            kind=next_checkpoint.kind,
+                        )
+                    )
+                    continue
+
+                # チェックポイントもこれ以上ないことから、
+                # 最後までフェーズの長さ分の待機を完遂したといえる。
+                # なので、ここでこのフェーズの待機は終了。
+
                 return
 
             # フェーズの待機（`phase_sleep`）が終わらなかったのなら、
             # 一時停止されたということ。なので残り時間をメモしておく。
             # これにより、再開後に適切な残り時間となる。
-            remaining -= time.monotonic() - started_at
             self._events.put_nowait(
                 PhasePaused(phase=self._state.current_phase, remaining=remaining)
             )
