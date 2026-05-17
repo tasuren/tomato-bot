@@ -36,6 +36,7 @@ def intents() -> discord.Intents:
     intents = discord.Intents.none()
     intents.voice_states = True
     intents.guilds = True
+    intents.messages = True
     return intents
 
 
@@ -87,6 +88,21 @@ class TomatoBot(discord.Client):
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         await self.application_services.guild_initializer.on_guild_join(guild)
+
+    async def on_raw_message_delete(
+        self, payload: discord.RawMessageDeleteEvent
+    ) -> None:
+        """開始フロー用メッセージが消された場合は、残った開始状態を解放する。"""
+        if payload.guild_id is None:
+            return
+
+        await (
+            self.application_services.command_use_case.cancel_start_by_deleted_message(
+                payload.guild_id,
+                channel_id=payload.channel_id,
+                message_id=payload.message_id,
+            )
+        )
 
     async def close(self) -> None:
         logger.info("終了中...")

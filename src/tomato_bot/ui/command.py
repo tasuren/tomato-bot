@@ -72,6 +72,7 @@ async def start(interaction: discord.Interaction[TomatoBot]) -> None:
         view=JoinSelectRoutineView(
             dict(flow.routines),
             use_case=use_case,
+            guild_id=member.guild.id,
             target_user_id=member.id,
             text_channel=text_channel,
             voice_channel=member.voice.channel,
@@ -79,11 +80,16 @@ async def start(interaction: discord.Interaction[TomatoBot]) -> None:
     )
 
     if isinstance(response.resource, discord.InteractionMessage):
-        jump_url = response.resource.jump_url
+        message = response.resource
     else:
-        jump_url = (await interaction.original_response()).jump_url
+        message = await interaction.original_response()
 
-    use_case.attach_start_prompt_jump_url(flow.guild_id, jump_url)
+    use_case.attach_start_flow_message(
+        flow.guild_id,
+        channel_id=message.channel.id,
+        message_id=message.id,
+        jump_url=message.jump_url,
+    )
 
 
 @app_commands.command(

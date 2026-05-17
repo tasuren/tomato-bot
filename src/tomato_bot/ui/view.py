@@ -2,7 +2,6 @@ from __future__ import annotations
 
 __all__ = ("JoinSelectRoutineView",)
 
-import contextlib
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Self, override
 
@@ -57,6 +56,67 @@ class SelectRoutineView(discord.ui.View):
         raise NotImplementedError
 
 
+class StartConfirmView(discord.ui.View):
+    """ルーチン確定後にタイマー開始を確認するview"""
+
+    def __init__(self, *, use_case: CommandUseCase, guild_id: int) -> None:
+        super().__init__()
+
+        self._use_case = use_case
+        self._guild_id = guild_id
+
+    @discord.ui.button(style=discord.ButtonStyle.primary, label="開始！", emoji="🍅")
+    async def start(
+        self, interaction: discord.Interaction[TomatoBot], _: discord.ui.Button
+    ) -> None:
+        self.stop()
+        self._disable_buttons()
+
+        content = None
+        try:
+            self._use_case.start(self._guild_id)
+        except SessionNotFound:
+            commands = await retrieve_commands(interaction.client)
+            start = command_mention(commands["ポモドーロタイマーを開始"])
+            content = (
+                "別で停止コマンドが使われたため、開始できませんでした。\n"
+                f"もう一度、{start}コマンドを使ってみてください。"
+            )
+        except TimerAlreadyStarted:
+            content = (
+                "既にポモドーロタイマーは動作しています。なので何もしませんでした。"
+            )
+
+        if content is None:
+            await interaction.response.edit_message(view=self)
+        else:
+            # エラー時は編集を応答にせず、エラー返信を応答にする。
+            if interaction.message is not None:
+                await interaction.message.edit(view=self)
+            await interaction.response.send_message(content=content)
+
+    @discord.ui.button(style=discord.ButtonStyle.secondary, label="やっぱやめる")
+    async def cancel(
+        self, interaction: discord.Interaction[TomatoBot], _: discord.ui.Button
+    ) -> None:
+        self.stop()
+        await self._use_case.cancel_start(self._guild_id)
+
+        self._disable_buttons()
+        await interaction.response.edit_message(view=self)
+
+        if interaction.message is not None:
+            await interaction.message.reply("キャンセルしました。")
+
+    @override
+    async def on_timeout(self) -> None:
+        await self._use_case.cancel_start(self._guild_id)
+
+    def _disable_buttons(self) -> None:
+        self.start.disabled = True
+        self.cancel.disabled = True
+
+
 class JoinSelectRoutineView(SelectRoutineView):
     """joinコマンドのためのルーチン選択view"""
 
@@ -65,6 +125,7 @@ class JoinSelectRoutineView(SelectRoutineView):
         routines: dict[int, Routine],
         *,
         use_case: CommandUseCase,
+        guild_id: int,
         target_user_id: int,
         text_channel: discord.abc.Messageable,
         voice_channel: discord.VoiceChannel | discord.StageChannel,
@@ -73,9 +134,14 @@ class JoinSelectRoutineView(SelectRoutineView):
 
         self._routines = routines
         self._use_case = use_case
+        self._guild_id = guild_id
         self._text_channel = text_channel
         self._voice_channel = voice_channel
         self._target_user_id = target_user_id
+
+    @override
+    async def on_timeout(self) -> None:
+        await self._use_case.cancel_start(self._guild_id)
 
     @override
     async def on_select(
@@ -119,57 +185,10 @@ class JoinSelectRoutineView(SelectRoutineView):
             return
 
         # 即座にタイマーは稼働させずに、ユーザーからボタンを押されたタイミングにする。
-        confirm_view = discord.ui.View()
-        start_button = discord.ui.Button(
-            style=discord.ButtonStyle.primary, label="開始！", emoji="🍅"
+        confirm_view = StartConfirmView(
+            use_case=self._use_case,
+            guild_id=member.guild.id,
         )
-        stop_button = discord.ui.Button(
-            style=discord.ButtonStyle.secondary, label="やっぱやめる"
-        )
-
-        async def start(interaction: discord.Interaction[TomatoBot]) -> None:
-            confirm_view.stop()
-            start_button.disabled = True
-            stop_button.disabled = True
-
-            content = None
-            try:
-                self._use_case.start(member.guild.id)
-            except SessionNotFound:
-                commands = await retrieve_commands(interaction.client)
-                start = command_mention(commands["ポモドーロタイマーを開始"])
-                content = (
-                    "別で停止コマンドが使われたため、開始できませんでした。\n"
-                    f"もう一度、{start}コマンドを使ってみてください。"
-                )
-            except TimerAlreadyStarted:
-                content = (
-                    "既にポモドーロタイマーは動作しています。なので何もしませんでした。"
-                )
-
-            if content is None:
-                await interaction.response.edit_message(view=confirm_view)
-            else:
-                # エラー時は編集を応答にせず、エラー返信を応答にする。
-                if interaction.message is not None:
-                    await interaction.message.edit(view=confirm_view)
-                await interaction.response.send_message(content=content)
-
-        async def stop(interaction: discord.Interaction[TomatoBot]) -> None:
-            with contextlib.suppress(SessionNotFound):
-                await self._use_case.cancel_start(member.guild.id)
-
-            start_button.disabled = True
-            stop_button.disabled = True
-            await interaction.response.edit_message(view=confirm_view)
-
-            if interaction.message is not None:
-                await interaction.message.reply("キャンセルしました。")
-
-        start_button.callback = start
-        stop_button.callback = stop
-        confirm_view.add_item(start_button)
-        confirm_view.add_item(stop_button)
 
         routine_display_name = normalize_nested_quotes(routine.name)
         await interaction.edit_original_response(
