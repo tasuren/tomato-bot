@@ -141,9 +141,14 @@ class TimerSession:
 
     async def _timer_runner(self) -> None:
         try:
-            await asyncio.gather(self._timer.run(), self._consume_events())
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(self._timer.run())
+                tg.create_task(self._consume_events())
         except Exception:
             logger.exception("ポモドーロタイマーの処理中にエラーが発生しました。")
+        finally:
+            if self._task is asyncio.current_task():
+                self._task = None
 
     @classmethod
     async def connect(
