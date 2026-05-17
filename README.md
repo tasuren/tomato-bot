@@ -5,8 +5,7 @@ Discord初心者でも使いやすいUIを目指しています。
 
 **クローズドベータ公開中、近日公開**
 
-<img width="420" alt="Discord screenshot" src="https://github.com/user-attachments/assets/96f40f4a-909f-40da-a8ee-f54d8b3142a1" />
-
+<img width="420" alt="トマトBotが25分の作業フェーズを通知している様子" src="https://github.com/user-attachments/assets/b8b81c38-471b-4dca-891c-35b2a866de53" />
 
 ## 開発方法
 
