@@ -216,7 +216,7 @@ def format_phase_status(kind: str, ends_at: float, has_phase_switched: bool) -> 
     return (
         "🍅 ポモドーロタイマー\n"
         + head
-        + f"次のフェーズは約{formated_ends_at}後の<t:{ends_at}:t>となります。"
+        + f"次のフェーズは約{formated_ends_at}後の<t:{ends_at}:t>頃となります。"
     )
 
 
