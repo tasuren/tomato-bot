@@ -29,7 +29,7 @@ Discord初心者でも使いやすいUIを目指しています。
 
 パッケージマネージャuvを使用します。
 
-1. `uv sync --sync`で依存関係をインストールする。
+1. `uv sync --frozen`で依存関係をインストールする。
 2. `.env.example`を参考に環境変数を設定（`.env`でも可）
 3. `uv run setup_db.py`を実行してデータベースを用意
 4. `uv run -m tomato_bot --sync-global-commands-first`で起動しコマンドの同期を行う
