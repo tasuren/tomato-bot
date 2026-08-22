@@ -7,11 +7,11 @@ requires-python = ">=3.14"
 dependencies = [
     "aiosqlite>=0.22.1",
     "audioop-lts>=0.2.2",
-    "davey>=0.1.5",
+    "davey>=0.1.6",
     "discord-py>=2.7.1",
     "pathvalidate>=3.3.1",
     "pynacl>=1.6.2",
-    "python-dotenv>=1.2.2",
+    "python-dotenv>=1.2.3",
 ]
 
 [build-system]
