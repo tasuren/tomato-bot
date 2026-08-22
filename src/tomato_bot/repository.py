@@ -105,7 +105,7 @@ class SQLiteRepository(Repository):
             INSERT OR IGNORE INTO guild_settings (guild_id, initialized)
             VALUES (?, ?);
             """,
-            map(lambda gid: (gid, False), guild_ids),
+            ((gid, False) for gid in guild_ids),
         )
 
     @override
@@ -136,16 +136,16 @@ class SQLiteRepository(Repository):
             INSERT INTO routines (name, description, guild_id, user_id, alarm_sound_id, phases)
             VALUES (?, ?, ?, ?, ?, ?);
             """,
-            map(
-                lambda r: (
+            (
+                (
                     r.name,
                     r.description,
                     r.guild_id,
                     r.user_id,
                     r.alarm_sound_id,
                     json.dumps(tuple(map(asdict, r.phases))),
-                ),
-                routines,
+                )
+                for r in routines
             ),
         )
 
@@ -186,7 +186,6 @@ class SQLiteRepository(Repository):
                 )
 
                 phases_dto: list[PhaseDto] = json.loads(raw_phases)
-
                 routines.append(
                     Routine(
                         id=id,
@@ -195,9 +194,7 @@ class SQLiteRepository(Repository):
                         guild_id=guild_id,
                         user_id=user_id,
                         alarm_sound_id=alarm_sound_id,
-                        phases=list(
-                            map(lambda phase_dto: Phase(**phase_dto), phases_dto)
-                        ),
+                        phases=[Phase(**phase_dto) for phase_dto in phases_dto],
                     )
                 )
 
