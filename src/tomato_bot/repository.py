@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ("Repository", "SQLiteRepository", "NewRoutineRecord")
+__all__ = ("NewRoutineRecord", "Repository", "SQLiteRepository")
 
 import asyncio
 import itertools
@@ -85,7 +85,7 @@ class SQLiteRepository(Repository):
 
     @override
     @asynccontextmanager
-    async def transaction(self) -> AsyncGenerator[None, None]:
+    async def transaction(self) -> AsyncGenerator[None]:
         async with self._commit_lock:
             try:
                 await self.db.execute("BEGIN;")

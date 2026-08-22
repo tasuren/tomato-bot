@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 __all__ = (
-    "PhaseStarted",
     "PhaseChanged",
+    "PhasePaused",
     "PhaseRemainingCheckpoint",
     "PhaseRemainingCheckpointKind",
-    "PomodoroTimer",
-    "PhasePaused",
     "PhaseResumed",
-    "TimerStateError",
+    "PhaseStarted",
+    "PomodoroTimer",
     "TimerAlreadyPaused",
     "TimerAlreadyResumed",
+    "TimerStateError",
 )
 
 import asyncio
@@ -282,8 +282,7 @@ class PomodoroTimer:
                 )
 
             remaining -= time.monotonic() - started_at
-            if remaining < 0:
-                remaining = 0
+            remaining = max(remaining, 0)
 
             if phase_sleep in done:
                 if next_checkpoint is not None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ("normalize_nested_quotes", "command_mention")
+__all__ = ("command_mention", "normalize_nested_quotes")
 
 import discord
 

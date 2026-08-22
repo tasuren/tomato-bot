@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ("Routine", "Phase", "RoutineMetadata")
+__all__ = ("Phase", "Routine", "RoutineMetadata")
 
 from dataclasses import dataclass
 from typing import NamedTuple

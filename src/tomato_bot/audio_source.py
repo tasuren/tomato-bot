@@ -7,12 +7,13 @@ from __future__ import annotations
 
 __all__ = ("WavAudio",)
 
-from typing import IO
 import wave
+from typing import IO
 
-from discord.opus import Encoder as OpusEncoder
-import discord
 import audioop
+import discord
+from discord.opus import Encoder as OpusEncoder
+
 
 class WavAudio(discord.AudioSource):
     """Wavファイル形式のデータを再生するための、``AudioSource``の実装。"""

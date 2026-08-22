@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 __all__ = (
-    "DEFAULT_ROUTINES",
-    "FALLBACK_ROUTINE",
     "DEFAULT_ALARM_SOUNDS",
+    "DEFAULT_ROUTINES",
     "FALLBACK_ALARM_SOUND",
+    "FALLBACK_ROUTINE",
 )
 
 from tomato_bot.domain import AlarmSoundMetadata, Phase, RoutineMetadata

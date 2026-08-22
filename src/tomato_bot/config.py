@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 __all__ = (
-    "token",
     "database_url",
+    "loading_emoji",
     "override_about_text",
     "override_help_text",
-    "loading_emoji",
+    "token",
 )
 
 from os import getenv
