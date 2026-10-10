@@ -101,8 +101,12 @@ class TimerSession:
 
     async def _on_phase_changed(self, phase: Phase, ends_at: float) -> None:
         # アラーム音を再生
-        f = open(self._alarm_sound_path, "rb")
-        self._voice_client.play(WavAudio(f), after=lambda _: f.close())
+        source = await asyncio.to_thread(WavAudio, self._alarm_sound_path)
+        try:
+            self._voice_client.play(source)
+        except BaseException:
+            source.cleanup()
+            raise
 
         self._has_phase_switched = True
 

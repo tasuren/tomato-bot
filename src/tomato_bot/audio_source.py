@@ -8,7 +8,8 @@ from __future__ import annotations
 __all__ = ("WavAudio",)
 
 import wave
-from typing import IO
+from os import fspath
+from pathlib import PurePath
 
 import audioop
 import discord
@@ -16,10 +17,15 @@ from discord.opus import Encoder as OpusEncoder
 
 
 class WavAudio(discord.AudioSource):
-    """Wavファイル形式のデータを再生するための、``AudioSource``の実装。"""
+    """WAVファイルを再生する``AudioSource``の実装。
 
-    def __init__(self, stream: IO[bytes]) -> None:
-        self._wav: wave.Wave_read = wave.open(stream)
+    ファイルは再生が終わるまで保持し、``cleanup``で閉じる。
+    """
+
+    def __init__(self, path: PurePath) -> None:
+        self._wav: wave.Wave_read = wave.open(  # noqa: SIM115 -- AudioSource.cleanup()で閉じる
+            fspath(path), "rb"
+        )
 
         # wavファイルの情報を取得する。
 
